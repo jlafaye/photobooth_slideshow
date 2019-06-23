@@ -21,7 +21,7 @@ Standard python best practices apply here
 
 Create a python virtual environment & activate it
 ```
-virtualenv --python=python3 virtualenv_for_photobooth_viewer
+virtualenv --python=python3 --system-site-packages virtualenv_for_photobooth_viewer
 ```
 Install the package
 ```
