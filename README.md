@@ -9,6 +9,11 @@ The main program actively polls a directory for new images and displays them as 
 
 Before developping this tool, I used the viewer from my smart TV that supports DLNA but the viewer required to be restarted to take into account new images. Field tests show that the first thing people expect from a photobooth stand is that it shows the picture it has *just* taken and not some random picture taken ages ago.
 
+## Requirements
+
+* numpy
+* pillow
+* pi3d
 
 ## Installation
 
@@ -17,10 +22,6 @@ Standard python best practices apply here
 Create a python virtual environment & activate it
 ```
 virtualenv --python=python3 virtualenv_for_photobooth_viewer
-```
-Install the requirements
-```
-pip install -r requirements.txt
 ```
 Install the package
 ```
