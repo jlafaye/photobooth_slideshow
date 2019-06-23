@@ -19,6 +19,12 @@ Before developping this tool, I used the viewer from my smart TV that supports D
 
 Standard python best practices apply here
 
+(Raspberry only)
+For raspberry with raspbian distribution, it is advised to use numpy & pillow versions packaged in the distribution
+```
+sudo apt-get install python3-numpy python3-pillow
+```
+
 Create a python virtual environment & activate it
 ```
 virtualenv --python=python3 --system-site-packages virtualenv_for_photobooth_viewer
