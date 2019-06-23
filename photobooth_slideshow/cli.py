@@ -11,13 +11,15 @@ from multiprocessing import Queue, Process
 import argparse
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # whether to anti-alias map screen pixels to image pixels
 # set False if no scaling required (faster, less memory needed)
-MIPMAP = False
+MIPMAP = True
 FADE_TM = 2.0
 
+#DISPLAY = pi3d.Display.create(background=(0.0, 0.0, 0.0, 1.0), frames_per_second=20)
+#CAMERA = pi3d.Camera(is_3d=False)
 
 def lookup_assets():
     alternatives = ['assets', os.path.join(sys.exec_prefix, 'assets')]
@@ -34,40 +36,41 @@ if ASSETS_DIR is None:
     raise FileNotFoundError('Unable to find assets')
 logging.debug('Found assets {}'.format(ASSETS_DIR))
 DEFAULT_IMAGE = os.path.join(ASSETS_DIR, 'images', 'no_image.png')
-DEFAULT_SHADER = os.path.join(ASSETS_DIR, 'shaders', 'blend_bump')
 
 
-class Slide(object):
+class Slide(pi3d.Sprite):
     def __init__(self):
-        self.tex = None
-        self.dimensions = None
+        super(Slide, self).__init__(w=1.0, h=1.0)
 
 
-def create_slide(image, width, height):
-    print('image:', image)
-    tex = pi3d.Texture(image,
-                       blend=True,
-                       mipmap=MIPMAP,
-                       m_repeat=False)
-    slide = Slide()
-    xrat = width/tex.ix
-    yrat = height/tex.iy
-    if yrat < xrat:
-        xrat = yrat
-    print('width:', width, 'height:', height)
-    print('xrat:', xrat, 'yrat:', yrat)
-    print('tex.ix:', tex.ix, 'tex.iy', tex.iy)
-    wi, hi = tex.ix * xrat, tex.iy * xrat
-    xi = (width - wi)/2
-    yi = (height - hi)/2
-    slide.tex = tex
-    slide.dimensions = (wi, hi, xi, yi)
-    return slide
+class SlideFactory:
+
+    def __init__(self, width, height):
+        self._shader = pi3d.Shader('uv_flat')
+        self._height = height
+        self._width = width
+
+    def create(self, image):
+        tex = pi3d.Texture(image,
+                           blend=True,
+                           mipmap=MIPMAP)
+        slide = Slide()
+        xrat = self._width/tex.ix
+        yrat = self._height/tex.iy
+        if yrat < xrat:
+            xrat = yrat
+        wi, hi = tex.ix * xrat, tex.iy * xrat
+        xi = (self._width - wi)/2
+        yi = (self._height - hi)/2
+        slide.set_draw_details(self._shader, [tex])
+        slide.scale(wi, hi, 1.0)
+        return slide
 
 
-def create_slide_from_filename(filename, width, height):
-    image = Image.open(filename)
-    return create_slide(image, width, height)
+#def create_slide_from_filename(filename, width, height):
+#    image = Image.open(filename)
+#    image.load()
+#    return create_slide(image, width, height)
 
 
 class ImageFilter:
@@ -172,67 +175,49 @@ def run_sampler(directory, queue):
 def run_opengl(config, queue):
 
     logging.info('Starting opengl UI loop')
-    # 1440x1080
-    DISPLAY = pi3d.Display.create(background=(0.3, 0.3, 0.3, 1.0),
-                                  # w=1440, h=1080,
-                                  frames_per_second=config.fps, tk=False)
+    DISPLAY = pi3d.Display.create(background=(0.0, 0.0, 0.0, 1.0),
+                                  frames_per_second=config.fps)
+    CAMERA = pi3d.Camera(is_3d=False)
+
+    CAMERA = pi3d.Camera.instance()
+    CAMERA.was_moved = False #to save a tiny bit of work each loop
 
     logging.info('Using display of size {}x{}'.format(DISPLAY.width,
                                                       DISPLAY.height))
 
+    factory = SlideFactory(DISPLAY.width, DISPLAY.height)
+
     fade = 0.0
     fade_step = 1.0 / (config.fps * FADE_TM)
-    slide_foreground = None
-    slide_background = create_slide_from_filename(DEFAULT_IMAGE,
-                                                  DISPLAY.width,
-                                                  DISPLAY.height)
 
-    shader = pi3d.Shader('shaders/blend_bump')
-
-    canvas = pi3d.Canvas()
-    canvas.set_shader(shader)
-
+    slide_background = factory.create(DEFAULT_IMAGE)
     slide_foreground = slide_background
 
     while DISPLAY.loop_running():
         try:
-            # do we have a new picture to display
+            # do we have a new picture to display ?
             image = queue.get(block=False)
-            slide_foreground = slide_background
-            slide_background = create_slide(image,
-                                            DISPLAY.width,
-                                            DISPLAY.height)
+            slide_background = slide_foreground
+            slide_foreground = factory.create(image)
+            slide_background.positionZ(-0.1)
+            slide_foreground.positionZ(+0.1)
             fade = 0.0
         except Empty:
             pass
 
-        # reset two textures
-        canvas.set_draw_details(canvas.shader, [slide_foreground.tex,
-                                                slide_background.tex])
-
-        # print('slide_baclgrond:', slide_background)
-        # print("dimensions:", slide_background.dimensions)
-
-        canvas.set_2d_size(slide_background.dimensions[0],
-                           slide_background.dimensions[1],
-                           slide_background.dimensions[2],
-                           slide_background.dimensions[3])
-
-        # need to pass shader dimensions for both textures
-        canvas.unif[48:54] = canvas.unif[42:48]
-
-        canvas.set_2d_size(slide_foreground.dimensions[0],
-                           slide_foreground.dimensions[1],
-                           slide_foreground.dimensions[2],
-                           slide_foreground.dimensions[3])
-
         if fade < 1.0:
-            fade += fade_step  # increment fade
-            if fade > 1.0:  # more efficient to test here than in pixel shader
+            fade += fade_step
+            if fade > 1.0:
                 fade = 1.0
-            canvas.unif[44] = fade  # pass value to shader using unif list
 
-        canvas.draw()  # then draw it
+        if slide_foreground == slide_background:
+            slide_foreground.set_alpha(1)
+        else:
+            slide_foreground.set_alpha(fade)
+            slide_background.set_alpha(1-fade)
+
+        slide_foreground.draw()
+        slide_background.draw()
 
 
 def run_slideshow():
