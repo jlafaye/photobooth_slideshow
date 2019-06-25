@@ -81,14 +81,14 @@ class ImageFilter:
 
 class FileSampler:
 
-    def __init__(self, directory):
+    def __init__(self, directory, grace_period, long_grace_period):
         self._directory = directory
         self._filenames = []
         self._added_files = []
         self._max_ctime = None
         self._last_update = None
-        self._grace_period = dt.timedelta(0, 5)
-        self._long_grace_period = dt.timedelta(0, 30)
+        self._grace_period = grace_period
+        self._long_grace_period = long_grace_period
         self._is_added_file = False
         self._filter = ImageFilter()
 
@@ -148,9 +148,11 @@ class FileSampler:
         return None
 
 
-def run_sampler(directory, queue):
+def run_sampler(config, queue):
 
-    sampler = FileSampler(directory)
+    sampler = FileSampler(config.directory,
+                          dt.timedelta(0, config.timeout),
+                          dt.timedelta(0, config.shot_timeout))
 
     while True:
         filename = sampler.get_filename()
@@ -216,16 +218,23 @@ def run_slideshow():
     parser.add_argument('-d', '--directory', help='Image directory')
     parser.add_argument('--fps', type=int, default=20,
                         help='Number of frames for opengl loop')
-    args = parser.parse_args()
+    parser.add_argument('--timeout', type=int, default=5,
+                        help='Time in seconds between two pictures'
+                             'in random slideshow mode')
+    parser.add_argument('--shot-timeout', type=int, default=30,
+                        help='Number of seconds a recently shot picture'
+                             'is kept on the screen before switching to'
+                             'random slideshow')
+    config = parser.parse_args()
 
-    directory = args.directory
-    if args.directory is None:
+    directory = config.directory
+    if config.directory is None:
         logging.error('No image directory, use either -d or --directory')
         sys.exit(1)
 
     q = Queue()
     t = Thread(target=run_sampler,
-               args=(directory, q,))
+               args=(config, q,))
     t.start()
 
-    run_opengl(args, q)
+    run_opengl(config, q)
