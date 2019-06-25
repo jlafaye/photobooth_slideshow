@@ -5,9 +5,9 @@ import datetime as dt
 import imghdr
 import random
 import sys
-from queue import Empty
+from queue import Empty, Queue
 from time import sleep
-from multiprocessing import Queue, Process
+from threading import Thread
 import argparse
 
 import logging
@@ -234,8 +234,8 @@ def run_slideshow():
         sys.exit(1)
 
     q = Queue()
-    p = Process(target=run_sampler,
-                args=(directory, q,))
-    p.start()
+    t = Thread(target=run_sampler,
+               args=(directory, q,))
+    t.start()
 
     run_opengl(args, q)
