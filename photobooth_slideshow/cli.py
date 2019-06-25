@@ -18,8 +18,6 @@ logging.basicConfig(level=logging.INFO)
 MIPMAP = True
 FADE_TM = 2.0
 
-#DISPLAY = pi3d.Display.create(background=(0.0, 0.0, 0.0, 1.0), frames_per_second=20)
-#CAMERA = pi3d.Camera(is_3d=False)
 
 def lookup_assets():
     alternatives = ['assets', os.path.join(sys.exec_prefix, 'assets')]
@@ -60,17 +58,9 @@ class SlideFactory:
         if yrat < xrat:
             xrat = yrat
         wi, hi = tex.ix * xrat, tex.iy * xrat
-        xi = (self._width - wi)/2
-        yi = (self._height - hi)/2
         slide.set_draw_details(self._shader, [tex])
         slide.scale(wi, hi, 1.0)
         return slide
-
-
-#def create_slide_from_filename(filename, width, height):
-#    image = Image.open(filename)
-#    image.load()
-#    return create_slide(image, width, height)
 
 
 class ImageFilter:
@@ -180,7 +170,7 @@ def run_opengl(config, queue):
     CAMERA = pi3d.Camera(is_3d=False)
 
     CAMERA = pi3d.Camera.instance()
-    CAMERA.was_moved = False #to save a tiny bit of work each loop
+    CAMERA.was_moved = False  # to save a tiny bit of work each loop
 
     logging.info('Using display of size {}x{}'.format(DISPLAY.width,
                                                       DISPLAY.height))
