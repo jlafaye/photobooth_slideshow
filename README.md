@@ -28,6 +28,7 @@ sudo apt-get install python3-numpy python3-pillow
 Create a python virtual environment & activate it
 ```
 virtualenv --python=python3 --system-site-packages virtualenv_for_photobooth_viewer
+source virtualenv_for_photobooth_viewer/bin/activate
 ```
 Install the package
 ```
